@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنظومة الذكية لتسيير حراس الامتحانات - DONIA LABS TECH</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; }
+        .print-only { display: none; }
+        @media print {
+            .no-print { display: none; }
+            .print-only { display: block; }
+            body { background: white; margin: 0; padding: 0; }
+            @page { size: A4; margin: 2cm; }
+        }
+        .teacher-item:hover .delete-btn { opacity: 1; }
+        .delete-btn { transition: all 0.2s; }
+        .official-stamp { font-family: 'Cairo', sans-serif; }
+        .stamp-place { border: 2px dashed #4b5563; border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; background: #f9fafb; }
+        .smart-suggestions {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 50;
+            width: calc(100% - 2px);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .suggestion-item { padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; }
+        .suggestion-item:hover { background-color: #eef2ff; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- الهيدر الرسمي -->
+    <header class="bg-slate-900 text-white shadow-xl no-print border-b-4 border-blue-600">
+        <div class="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-reverse space-x-4">
+                <div class="w-16 h-16 rounded-full border-2 border-blue-500 overflow-hidden bg-gradient-to-br from-blue-900 to-indigo-900 shadow-md flex-shrink-0 flex flex-col items-center justify-center text-center p-1">
+                    <span class="text-[9px] font-black text-white leading-tight">DONIA LABS TECH</span>
+                    <span class="text-[6px] text-blue-300 font-mono">SMART IDEAS LAB</span>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-2xl font-bold tracking-wide">المنظومة الذكية لتسيير ومراقبة حراس الامتحانات</h1>
+                    <p class="text-xs text-slate-400 mt-1">إدخال ذكي - توزيع تلقائي مرن (فترة، يوم، جميع الأيام) - تقارير رسمية</p>
+                </div>
+            </div>
+            <div class="text-left">
+                <span class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-blue-400 border border-slate-700 block">DONIA LABS TECH</span>
+                <span class="text-[10px] text-slate-400 block mt-1 text-center font-mono">SMART IDEAS LAB</span>
+            </div>
+        </div>
+        <div class="bg-blue-950/40 text-center py-2 text-[11px] font-medium text-blue-200 border-t border-blue-800/30">
+            <span>✨ DONIA LABS TECH - حلول رقمية مبتكرة لاجلكم ✨</span>
+            <a href="https://donialabstech.online" target="_blank" class="text-blue-300 hover:underline mx-1">https://donialabstech.online</a>
+            <span>| تواصلوا معنا: </span>
+            <a href="mailto:contact@donialabstech.online" class="text-blue-300 hover:underline">contact@donialabstech.online</a>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-7xl no-print">
+        
+        <!-- شريط البحث المباشر -->
+        <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-5 mb-8">
+            <div class="flex items-center space-x-reverse space-x-3 mb-3">
+                <span class="text-2xl">🔍</span>
+                <h2 class="text-md font-bold text-slate-900">البحث المباشر والذكي</h2>
+            </div>
+            <input type="text" id="globalSearchInput" placeholder="ابحث عن أستاذ، قاعة، فترة..." class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <div id="searchResults" class="mt-3 text-xs text-slate-500 hidden bg-slate-50 p-3 rounded-lg border"></div>
+        </div>
+
+        <!-- الخطوة 1: تهيئة الهيكل -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div class="flex items-center space-x-reverse space-x-3 mb-4">
+                <span class="text-2xl">⚙️</span>
+                <h2 class="text-lg font-bold text-slate-900">تهيئة هيكل الامتحان</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                <div><label class="block text-xs font-bold mb-2">عدد أيام الامتحان:</label><input type="number" id="configDays" min="1" max="10" value="3" onchange="generateExamStructureConfig()" class="w-full border rounded-xl px-3 py-2 text-sm"></div>
+                <div><label class="block text-xs font-bold mb-2">عدد القاعات:</label><input type="number" id="configRooms" min="1" max="50" value="8" onchange="applyConfigChanges()" class="w-full border rounded-xl px-3 py-2 text-sm"></div>
+                <div class="md:col-span-2"><span class="block text-[10px] text-blue-600 font-bold bg-blue-50 p-2.5 rounded-lg">💡 يمكن تعديل الفترات لكل يوم في الجدول أدناه.</span></div>
+            </div>
+            <div class="mt-6 border rounded-xl bg-slate-50 p-4">
+                <h3 class="text-xs font-bold mb-3">تخصيص فترات كل يوم (صباحاً/مساءً):</h3>
+                <div id="daysPeriodsConfigContainer" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                <div class="mt-4 flex justify-end"><button onclick="applyConfigChanges()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl">🔄 تطبيق التعديلات</button></div>
+            </div>
+        </div>
+
+        <!-- الخطوة 2: إدارة الأساتذة -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div class="flex items-center space-x-reverse space-x-3 mb-4">
+                <span class="text-2xl">📋</span>
+                <h2 class="text-lg font-bold">استيراد وإدارة الأساتذة (Excel أو يدوي)</h2>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="border-2 border-dashed rounded-xl p-4 bg-slate-50 text-center cursor-pointer" onclick="document.getElementById('excelFile').click()">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                    <span class="text-4xl">📁</span>
+                    <div id="uploadStatus" class="text-xs font-bold">رفع ملف الأساتذة (Excel)</div>
+                    <div id="excelPreviewArea" class="mt-3 hidden">
+                        <select id="columnSelector" class="text-[10px] border rounded w-full p-1 mb-1" onchange="previewSelectedColumn()"></select>
+                        <div id="excelPreviewList" class="text-[11px] max-h-32 overflow-auto bg-white border p-2 rounded shadow-inner"></div>
+                        <button onclick="confirmExcelImport()" class="mt-2 bg-emerald-600 text-white text-[11px] px-2 py-1 rounded w-full">✅ اعتماد الأسماء</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold">➕ إضافة أستاذ جديد:</label>
+                    <div class="flex gap-2"><input type="text" id="newTeacherName" class="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="الاسم الكامل"><button onclick="addSingleTeacher()" class="bg-emerald-600 text-white text-xs px-4 py-2 rounded-xl">إضافة</button></div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button onclick="clearTeachersList()" class="bg-red-600 text-white text-xs px-5 py-2.5 rounded-xl">🗑️ تصفير الكل</button>
+                </div>
+            </div>
+            <div id="teachersStatusSummary" class="mt-5 hidden p-3 bg-emerald-50 border rounded-xl">
+                <div class="flex justify-between items-center mb-2"><span class="text-emerald-800 text-xs font-bold">الأساتذة المحملون (<span id="totalLoadedTeachers">0</span>):</span><button onclick="clearTeachersList()" class="text-xs text-red-600 underline">حذف الكل</button></div>
+                <div id="teachersListContainer" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- أزرار التوزيع المرنة (الفترة، اليوم الحالي، يوم محدد، جميع الأيام) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div class="flex items-center space-x-reverse space-x-3 mb-4">
+                <span class="text-2xl">🎯</span>
+                <h2 class="text-lg font-bold">إنجاز جدول التوزيع التلقائي (ذكي وعادل)</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button onclick="distributeCurrentPeriod()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2.5 rounded-xl shadow">📌 توزيع على الفترة الحالية فقط</button>
+                <button onclick="distributeCurrentDay()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold py-2.5 rounded-xl shadow">📅 توزيع على اليوم الحالي (كل الفترات)</button>
+                <div class="flex gap-2 items-center">
+                    <input type="number" id="targetDayNumber" min="1" max="10" value="1" class="w-20 border rounded-xl px-2 py-2 text-sm text-center">
+                    <button onclick="distributeSpecificDay()" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow">📆 توزيع على اليوم المحدد</button>
+                </div>
+                <button onclick="distributeAllDays()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-2.5 rounded-xl shadow">🌍 توزيع على جميع الأيام (كامل الجدول)</button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-3 text-center">✅ يعتمد التوزيع على مبدأ العدالة: الأساتذة الأقل حجوزاً يتم اقتراحهم أولاً، مع منع تكرار الحارس في نفس القاعة في نفس الفترة.</p>
+        </div>
+
+        <!-- أدوات التصدير -->
+        <div class="flex flex-wrap gap-3 mb-6">
+            <button onclick="exportCurrentState()" class="bg-blue-600 text-white text-xs px-5 py-3 rounded-xl">💾 حفظ الحالة (JSON)</button>
+            <div class="relative bg-amber-600 text-white text-xs px-5 py-3 rounded-xl cursor-pointer">📂 استرجاع ملف JSON<input type="file" id="importStateFile" accept=".json" class="absolute inset-0 opacity-0" onchange="importPreviousState(event)"></div>
+            <button onclick="exportFullScheduleExcel()" class="bg-emerald-600 text-white text-xs px-5 py-3 rounded-xl">🟢 جدول التوزيع Excel</button>
+            <button onclick="exportStatisticsExcel()" class="bg-indigo-600 text-white text-xs px-5 py-3 rounded-xl">📊 إحصائيات الحراس Excel</button>
+            <button onclick="window.print()" class="bg-red-600 text-white text-xs px-5 py-3 rounded-xl">📄 تصدير PDF / طباعة</button>
+        </div>
+
+        <!-- شاشة العمل الرئيسية مع الإدخال الذكي -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="bg-slate-100 border-b border-slate-200 flex flex-wrap" id="daysTabsContainer"></div>
+            <div class="p-6">
+                <div class="bg-slate-50 border rounded-xl p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+                    <span class="text-xs font-bold">اختر الفترة لعرض وحجز القاعات:</span>
+                    <div class="flex flex-wrap gap-2" id="currentPeriodControls"></div>
+                </div>
+                <div id="roomsGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- إحصائيات (تشمل الغائبين تماماً) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm border p-6">
+                <div class="flex justify-between mb-4"><h3 class="text-sm font-bold text-red-600">⚠️ الأساتذة الغائبون تماماً (0 فترة في جميع الأيام)</h3><span id="absentCountBadge" class="bg-red-100 text-red-800 text-xs font-bold px-2.5 py-1 rounded-full">0</span></div>
+                <ul id="absentList" class="divide-y text-xs max-h-96 overflow-auto"></ul>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border p-6 lg:col-span-2">
+                <div class="flex justify-between mb-4"><h3 class="text-sm font-bold">📊 فترات العمل التراكمية (ذكي: الأقل حجوزاً يظهر أولاً)</h3><span id="activeCountBadge" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full">0</span></div>
+                <div class="overflow-auto max-h-96"><table class="w-full text-xs"><thead class="bg-slate-200 sticky top-0"><tr><th class="px-4 py-3">الأستاذ</th><th class="px-4 py-3 text-center">الفترات</th><th class="px-4 py-3 text-center">الحالة</th></tr></thead><tbody id="periodsSummaryTableBody"></tbody></table></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- تقرير الطباعة الرسمي -->
+    <div class="print-only p-8 text-black bg-white official-stamp" id="printReport">
+        <div class="text-center font-bold text-sm border-b-2 border-black pb-4 mb-4">
+            <div class="text-xl">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+            <div class="text-lg">وزارة التربية الوطنية</div>
+            <div class="text-base mt-1">مديرية التربية لولاية: ....................................</div>
+            <div class="text-sm mt-1">مركز الامتحان: ....................................</div>
+            <div class="text-sm mt-1">السنة الدراسية: 2026/2025</div>
+        </div>
+        <h2 class="text-xl font-bold underline text-center mb-4">التقرير الرسمي لحضور وغيابات حراس الامتحانات</h2>
+        <p class="text-sm text-center">عدد الأيام: <span id="printTotalDaysText"></span> | عدد القاعات: <span id="printTotalRoomsText"></span> | تاريخ التحرير: <span id="printDate"></span></p>
+        <h3 class="text-sm font-bold mt-6">أولاً: فترات العمل المنجزة</h3>
+        <table class="w-full border-collapse border border-black text-sm mb-6">
+            <thead><tr class="bg-gray-100"><th class="border p-2">#</th><th class="border p-2">الاسم واللقب</th><th class="border p-2">مجموع الفترات</th><th class="border p-2">الوضعية</th>}</thead>
+            <tbody id="printPeriodsBody"></tbody>
+        </table>
+        <h3 class="text-sm font-bold text-red-800">ثانياً: الأساتذة المتغيبون تماماً (0 فترة)</h3>
+        <table class="w-full border-collapse border border-black text-sm mb-6">
+            <thead><tr class="bg-gray-100"><th class="border p-2">#</th><th class="border p-2">الاسم الكامل</th><th class="border p-2">الحالة</th>}</thead>
+            <tbody id="printAbsentsBody"></tbody>
+        </table>
+        <h3 class="text-sm font-bold">ثالثاً: جدول توزيع الحراس على القاعات (جميع الأيام)</h3>
+        <table class="w-full border-collapse border border-black text-xs mb-8">
+            <thead><tr class="bg-gray-100"><th class="border p-1">اليوم</th><th class="border p-1">الفترة</th><th class="border p-1">القاعة</th><th class="border p-1">الحارس الأول</th><th class="border p-1">الحارس الثاني</th><th class="border p-1">الحارس الثالث</th>}</thead>
+            <tbody id="printDistributionBody"></tbody>
+        </table>
+        <div class="flex justify-between items-end mt-16 pt-8 border-t border-double border-black">
+            <div class="text-center w-1/3"><div class="font-bold">رئيس مركز الامتحان</div><div class="stamp-place mt-3 h-24 flex flex-col justify-center"><span class="text-xs">(التوقيع والختم الرسمي)</span></div></div>
+            <div class="text-center w-1/3"><div class="font-bold">المشرف على النظام</div><div class="stamp-place mt-3 h-24 flex flex-col justify-center"><span class="text-xs">(الختم الإداري)</span></div></div>
+            <div class="text-left w-1/3"><p>حرر بـ: ................</p><p>في: ..../..../2026</p></div>
+        </div>
+        <div class="text-center text-[10px] text-gray-500 mt-8">نظام DONIA LABS TECH الذكي لتسيير الحراس - نسخة أصلية</div>
+    </div>
+
+    <script>
+        // --------------------- الهيكل الأساسي -------------------------
+        let examConfig = { totalDays:3, totalRooms:8, daysMap:{1:[{id:"d1p_m1",name:"الفترة الصباحية 1"},{id:"d1p_m2",name:"الفترة الصباحية 2"},{id:"d1p_a1",name:"الفترة المسائية 1"},{id:"d1p_a2",name:"الفترة المسائية 2"}],2:[{id:"d2p_m1",name:"الفترة الصباحية 1"},{id:"d2p_m2",name:"الفترة الصباحية 2"},{id:"d2p_a1",name:"الفترة المسائية 1"}],3:[{id:"d3p_m1",name:"الفترة الصباحية 1"},{id:"d3p_m2",name:"الفترة المسائية 2"}]}};
+        let teachersList = [];
+        let bookingState = {};
+        let currentActiveDay = 1;
+        let excelTempNames = [], rawSheetData = [];
+        let teacherWorkload = {};
+
+        function updateWorkload() {
+            teacherWorkload = {};
+            teachersList.forEach(t => teacherWorkload[t] = 0);
+            for(let key in bookingState) if(key.includes("_room")) { let val = bookingState[key]; if(val && teacherWorkload[val] !== undefined) teacherWorkload[val]++; }
+        }
+
+        // دالة التوزيع الأساسية: تقوم بتوزيع الحراس على مجموعة من الفترات (مصفوفة periods) مع الحفاظ على الحجوزات الأخرى
+        // معلمات: periods (مصفوفة كائنات {id, name})، workloadBase (نسخة من العبء الحالي، سنعدلها داخل الدالة)
+        function distributeOnPeriods(periods, workloadBase) {
+            if(teachersList.length === 0) throw new Error("لا يوجد أساتذة للتوزيع");
+            let newBooking = { ...bookingState };
+            // نزيل أي حجوزات سابقة لنفس الفترات التي سنوزع عليها
+            for(let period of periods) {
+                for(let r=1; r<=examConfig.totalRooms; r++) {
+                    for(let g=1; g<=3; g++) {
+                        let key = `${period.id}_room${r}_guard${g}`;
+                        if(newBooking[key]) {
+                            let oldTeacher = newBooking[key];
+                            if(workloadBase[oldTeacher] !== undefined) workloadBase[oldTeacher]--;
+                            delete newBooking[key];
+                        }
+                    }
+                }
+            }
+            // لكل فترة نوزع الحراس بعدالة
+            for(let period of periods) {
+                for(let r=1; r<=examConfig.totalRooms; r++) {
+                    let guardKeys = [];
+                    for(let g=1; g<=3; g++) guardKeys.push(`${period.id}_room${r}_guard${g}`);
+                    let availableTeachers = [...teachersList];
+                    // ترتيب حسب العبء الحالي تصاعدياً
+                    availableTeachers.sort((a,b) => workloadBase[a] - workloadBase[b]);
+                    let selected = [];
+                    for(let g=1; g<=3; g++) {
+                        let chosen = availableTeachers.find(t => !selected.includes(t));
+                        if(chosen) {
+                            selected.push(chosen);
+                            workloadBase[chosen]++;
+                            newBooking[guardKeys[g-1]] = chosen;
+                        } else {
+                            newBooking[guardKeys[g-1]] = "";
+                        }
+                    }
+                }
+            }
+            return newBooking;
+        }
+
+        // دوال التوزيع المختلفة
+        function distributeCurrentPeriod() {
+            if(teachersList.length === 0) { alert("الرجاء إضافة الأساتذة أولاً"); return; }
+            let periods = examConfig.daysMap[currentActiveDay] || [];
+            let activePeriodId = bookingState[`activePeriodDay_${currentActiveDay}`];
+            let period = periods.find(p => p.id === activePeriodId);
+            if(!period) { alert("لا توجد فترة نشطة"); return; }
+            let workloadCopy = { ...teacherWorkload };
+            try {
+                let newBooking = distributeOnPeriods([period], workloadCopy);
+                bookingState = newBooking;
+                updateWorkload();
+                applyConfigChanges();
+                updateDashboard();
+                alert(`✅ تم توزيع الحراس على الفترة ${period.name} بنجاح.`);
+            } catch(e) { alert(e.message); }
+        }
+
+        function distributeCurrentDay() {
+            if(teachersList.length === 0) { alert("الرجاء إضافة الأساتذة أولاً"); return; }
+            let periods = examConfig.daysMap[currentActiveDay] || [];
+            if(periods.length === 0) { alert("لا توجد فترات في هذا اليوم"); return; }
+            let workloadCopy = { ...teacherWorkload };
+            try {
+                let newBooking = distributeOnPeriods(periods, workloadCopy);
+                bookingState = newBooking;
+                updateWorkload();
+                applyConfigChanges();
+                updateDashboard();
+                alert(`✅ تم توزيع الحراس على اليوم ${currentActiveDay} (${periods.length} فترة) بنجاح.`);
+            } catch(e) { alert(e.message); }
+        }
+
+        function distributeSpecificDay() {
+            let dayNum = parseInt(document.getElementById("targetDayNumber").value);
+            if(isNaN(dayNum) || dayNum < 1 || dayNum > examConfig.totalDays) { alert(`الرجاء إدخال رقم يوم بين 1 و ${examConfig.totalDays}`); return; }
+            if(teachersList.length === 0) { alert("الرجاء إضافة الأساتذة أولاً"); return; }
+            let periods = examConfig.daysMap[dayNum] || [];
+            if(periods.length === 0) { alert("لا توجد فترات في هذا اليوم"); return; }
+            let workloadCopy = { ...teacherWorkload };
+            try {
+                let newBooking = distributeOnPeriods(periods, workloadCopy);
+                bookingState = newBooking;
+                updateWorkload();
+                applyConfigChanges();
+                updateDashboard();
+                alert(`✅ تم توزيع الحراس على اليوم ${dayNum} (${periods.length} فترة) بنجاح.`);
+            } catch(e) { alert(e.message); }
+        }
+
+        function distributeAllDays() {
+            if(teachersList.length === 0) { alert("الرجاء إضافة الأساتذة أولاً"); return; }
+            let allPeriods = [];
+            for(let d=1; d<=examConfig.totalDays; d++) {
+                let periods = examConfig.daysMap[d] || [];
+                allPeriods.push(...periods);
+            }
+            if(allPeriods.length === 0) { alert("لا توجد فترات في أي يوم"); return; }
+            let workloadCopy = { ...teacherWorkload };
+            try {
+                let newBooking = distributeOnPeriods(allPeriods, workloadCopy);
+                bookingState = newBooking;
+                updateWorkload();
+                applyConfigChanges();
+                updateDashboard();
+                alert(`✅ تم توزيع الحراس على جميع الأيام (${allPeriods.length} فترة) بنجاح.`);
+            } catch(e) { alert(e.message); }
+        }
+
+        // دوال عرض الشبكة والمدخلات الذكية (كما كانت مع تحسينات)
+        function renderRoomsGrid(dayNum, periodId) {
+            let grid = document.getElementById("roomsGridContainer");
+            grid.innerHTML = "";
+            for(let r=1; r<=examConfig.totalRooms; r++) {
+                let card = document.createElement('div');
+                card.className = "bg-white p-4 border rounded-2xl shadow-sm";
+                let header = `<div class="flex justify-between border-b pb-2 mb-3"><span class="bg-slate-800 text-white text-xs px-3 py-1 rounded-full">القاعة رقم 0${r}</span><span class="text-[10px] text-blue-600">حجز ذكي</span></div>`;
+                let guardsHtml = "";
+                let guardKeys = [];
+                for(let g=1; g<=3; g++) guardKeys.push(`${periodId}_room${r}_guard${g}`);
+                for(let g=1; g<=3; g++) {
+                    let key = `${periodId}_room${r}_guard${g}`;
+                    let current = bookingState[key] || "";
+                    let label = g===1 ? "الحارس الأول (رئيس القاعة)" : (g===2 ? "الحارس الثاني" : "الحارس الثالث");
+                    let inputId = `input_${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    guardsHtml += `<div class="mb-3 relative"><label class="text-[10px] font-bold block mb-1">${label}</label>
+                        <input type="text" id="${inputId}" value="${current.replace(/"/g, '&quot;')}" placeholder="اكتب الأحرف الأولى..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500" autocomplete="off">
+                        <div id="suggest_${inputId}" class="smart-suggestions hidden absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-lg z-50"></div>
+                    </div>`;
+                }
+                card.innerHTML = header + guardsHtml;
+                grid.appendChild(card);
+                for(let g=1; g<=3; g++) {
+                    let key = `${periodId}_room${r}_guard${g}`;
+                    let inputId = `input_${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    let input = document.getElementById(inputId);
+                    let suggDiv = document.getElementById(`suggest_${inputId}`);
+                    if(!input || !suggDiv) continue;
+                    let showSuggestions = (filter) => {
+                        let busy = [];
+                        for(let gg=1; gg<=3; gg++) if(bookingState[`${periodId}_room${r}_guard${gg}`]) busy.push(bookingState[`${periodId}_room${r}_guard${gg}`]);
+                        let available = teachersList.filter(t => !busy.includes(t));
+                        available.sort((a,b) => (teacherWorkload[a]||0) - (teacherWorkload[b]||0));
+                        let filtered = available.filter(t => t.includes(filter));
+                        if(filtered.length===0 || filter==="") { suggDiv.classList.add('hidden'); return; }
+                        suggDiv.innerHTML = "";
+                        filtered.forEach(teacher => {
+                            let item = document.createElement('div');
+                            item.className = "suggestion-item flex justify-between";
+                            item.innerHTML = `<span>${teacher}</span><span class="text-[10px] text-gray-500">📊 ${teacherWorkload[teacher]||0} فترة</span>`;
+                            item.onclick = (e) => {
+                                e.preventDefault();
+                                input.value = teacher;
+                                bookingState[key] = teacher;
+                                suggDiv.classList.add('hidden');
+                                updateDashboard();
+                                renderRoomsGrid(dayNum, periodId);
+                            };
+                            suggDiv.appendChild(item);
+                        });
+                        suggDiv.classList.remove('hidden');
+                    };
+                    input.addEventListener('input', (e) => { showSuggestions(e.target.value); if(e.target.value==="") { delete bookingState[key]; updateDashboard(); renderRoomsGrid(dayNum, periodId); } });
+                    input.addEventListener('focus', () => showSuggestions(input.value));
+                    input.addEventListener('blur', () => setTimeout(()=>suggDiv.classList.add('hidden'), 150));
+                }
+            }
+            updateDashboard();
+        }
+
+        // باقي دوال النظام الأساسية (مختصرة ولكنها كاملة)
+        function generateExamStructureConfig() { let days = Math.min(10, parseInt(document.getElementById("configDays").value)||3); document.getElementById("configDays").value = days; let container = document.getElementById("daysPeriodsConfigContainer"); container.innerHTML = ""; for(let d=1; d<=days; d++) { let existing = examConfig.daysMap[d] || []; let morningCount = existing.filter(p=>p.id.includes("_m")).length || 2; let afternoonCount = existing.filter(p=>p.id.includes("_a")).length || 0; let div = document.createElement("div"); div.className = "bg-white p-3 border rounded-lg"; div.innerHTML = `<div class="font-bold text-xs text-blue-700">📆 اليوم 0${d}</div><div class="flex justify-between"><label class="text-[10px]">صباحية:</label><input type="number" id="morningPeriods_Day${d}" min="0" max="3" value="${morningCount}" class="w-14 border rounded px-1 text-xs"></div><div class="flex justify-between"><label class="text-[10px]">مسائية:</label><input type="number" id="afternoonPeriods_Day${d}" min="0" max="3" value="${afternoonCount}" class="w-14 border rounded px-1 text-xs"></div>`; container.appendChild(div); } }
+        function applyConfigChanges() { let days = parseInt(document.getElementById("configDays").value); let rooms = parseInt(document.getElementById("configRooms").value); examConfig.totalDays = days; examConfig.totalRooms = rooms; let newMap = {}; for(let d=1; d<=days; d++) { let morning = parseInt(document.getElementById(`morningPeriods_Day${d}`)?.value||0); let afternoon = parseInt(document.getElementById(`afternoonPeriods_Day${d}`)?.value||0); let periods = []; for(let i=1;i<=morning;i++) periods.push({id:`d${d}p_m${i}`, name:`الفترة الصباحية ${i}`}); for(let i=1;i<=afternoon;i++) periods.push({id:`d${d}p_a${i}`, name:`الفترة المسائية ${i}`}); newMap[d] = periods; } examConfig.daysMap = newMap; if(currentActiveDay > days) currentActiveDay = 1; let clean = {}; for(let k in bookingState) { if(k.includes("_room")) { let periodId = k.split("_room")[0]; let dayMatch = periodId.match(/d(\d+)/); if(dayMatch && parseInt(dayMatch[1])<=days && examConfig.daysMap[parseInt(dayMatch[1])]?.some(p=>p.id===periodId)) clean[k]=bookingState[k]; } else clean[k]=bookingState[k]; } bookingState = clean; document.getElementById("printTotalDaysText").innerText = days; document.getElementById("printTotalRoomsText").innerText = rooms; setPrintDate(); renderDaysTabs(); switchDayTab(currentActiveDay); updateDashboard(); }
+        function renderDaysTabs() { let tabs = document.getElementById("daysTabsContainer"); tabs.innerHTML = ""; for(let d=1; d<=examConfig.totalDays; d++) { let btn = document.createElement("button"); btn.id = `tabBtn_${d}`; btn.onclick = () => switchDayTab(d); btn.className = "px-6 py-4 font-bold text-xs border-b-2 border-transparent hover:bg-slate-50"; btn.innerText = `اليوم 0${d} (${examConfig.daysMap[d]?.length||0} فترات)`; tabs.appendChild(btn); } }
+        function switchDayTab(day) { currentActiveDay = day; for(let d=1; d<=examConfig.totalDays; d++) { let btn = document.getElementById(`tabBtn_${d}`); if(btn) btn.className = d===day ? "px-6 py-4 font-bold text-xs text-blue-600 border-b-2 border-blue-600 bg-white" : "px-6 py-4 font-bold text-xs text-slate-600 border-b-2 border-transparent hover:bg-slate-50"; } renderActivePeriodControls(day); }
+        function renderActivePeriodControls(day) { let container = document.getElementById("currentPeriodControls"); container.innerHTML = ""; let periods = examConfig.daysMap[day] || []; if(!periods.length) { container.innerHTML = "<span class='text-red-500'>لا توجد فترات</span>"; document.getElementById("roomsGridContainer").innerHTML = ""; return; } if(!bookingState[`activePeriodDay_${day}`]) bookingState[`activePeriodDay_${day}`] = periods[0].id; let activeId = bookingState[`activePeriodDay_${day}`]; periods.forEach(p => { let btn = document.createElement("button"); btn.onclick = () => { bookingState[`activePeriodDay_${day}`] = p.id; renderActivePeriodControls(day); }; btn.className = `text-xs font-bold px-4 py-2 rounded-xl ${activeId===p.id ? "bg-blue-600 text-white" : "bg-slate-200 hover:bg-slate-300"}`; btn.innerText = p.name; container.appendChild(btn); }); renderRoomsGrid(day, activeId); }
+        
+        function addSingleTeacher() { let name = document.getElementById("newTeacherName").value.trim(); if(!name || /^\d+$/.test(name) || name.length<2) { alert("اسم صالح مطلوب"); return; } if(teachersList.includes(name)) { alert("موجود مسبقاً"); return; } teachersList.push(name); document.getElementById("newTeacherName").value = ""; onMasterListUpdated(); }
+        function removeTeacher(t) { teachersList = teachersList.filter(x=>x!==t); for(let k in bookingState) if(bookingState[k]===t) delete bookingState[k]; onMasterListUpdated(); applyConfigChanges(); }
+        function clearTeachersList() { if(confirm("مسح كل الأساتذة والحجوزات؟")) { teachersList=[]; bookingState={}; onMasterListUpdated(); applyConfigChanges(); } }
+        function onMasterListUpdated() { document.getElementById("totalLoadedTeachers").innerText = teachersList.length; if(teachersList.length) document.getElementById("teachersStatusSummary").classList.remove("hidden"); else document.getElementById("teachersStatusSummary").classList.add("hidden"); let container = document.getElementById("teachersListContainer"); container.innerHTML = teachersList.map(t=>`<div class="teacher-item bg-white border rounded-full px-3 py-1 flex items-center gap-2"><span class="text-xs">${t}</span><button onclick="removeTeacher('${t.replace(/'/g,"\\'")}')" class="delete-btn text-red-500">✖</button></div>`).join(''); updateWorkload(); applyConfigChanges(); updateDashboard(); }
+        
+        function handleExcelUpload(e) { let file = e.target.files[0]; if(!file) return; let reader = new FileReader(); reader.onload = function(ev) { let data = new Uint8Array(ev.target.result); let workbook = XLSX.read(data, {type:'array'}); let sheet = workbook.Sheets[workbook.SheetNames[0]]; let rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:""}); rawSheetData = rows; if(!rows.length) return; let headers = rows[0].map(c=>c?.toString().trim() || ""); let select = document.getElementById("columnSelector"); select.innerHTML = '<option value="">-- اختر عمود الأسماء --</option>'; headers.forEach((h,i)=> select.innerHTML += `<option value="${i}">${h || `عمود ${String.fromCharCode(65+i)}`}</option>`); document.getElementById("excelPreviewArea").classList.remove("hidden"); previewSelectedColumn(); }; reader.readAsArrayBuffer(file); }
+        function previewSelectedColumn() { let col = parseInt(document.getElementById("columnSelector").value); if(isNaN(col)) { document.getElementById("excelPreviewList").innerHTML = "<span class='text-red-500'>يرجى اختيار عمود</span>"; return; } let names = []; for(let i=1;i<rawSheetData.length;i++) { let cell = rawSheetData[i][col]?.toString().trim(); if(cell && !/^\d+$/.test(cell) && cell.length>1 && !cell.match(/^(رقم|id|الرقم)$/i)) names.push(cell); } excelTempNames = [...new Set(names)]; let previewDiv = document.getElementById("excelPreviewList"); if(excelTempNames.length===0) previewDiv.innerHTML = "<span class='text-red-500'>لا توجد أسماء صالحة</span>"; else previewDiv.innerHTML = `<div class="grid grid-cols-2 gap-1">${excelTempNames.slice(0,30).map(n=>`<span>📌 ${n}</span>`).join('')}${excelTempNames.length>30 ? `<span class="col-span-2 text-blue-500">... و${excelTempNames.length-30} اسماً</span>` : ''}</div>`; }
+        function confirmExcelImport() { if(!excelTempNames.length) { alert("لا توجد أسماء صالحة"); return; } let newNames = excelTempNames.filter(n=>!teachersList.includes(n)); if(!newNames.length) { alert("جميع الأسماء موجودة"); return; } teachersList.push(...newNames); document.getElementById("uploadStatus").innerHTML = `✅ تم استيراد ${newNames.length} اسماً`; onMasterListUpdated(); }
+        
+        function updateDashboard() {
+            updateWorkload();
+            let absent = teachersList.filter(t => (teacherWorkload[t]||0)===0);
+            document.getElementById("absentCountBadge").innerText = absent.length;
+            document.getElementById("activeCountBadge").innerText = teachersList.length-absent.length;
+            document.getElementById("absentList").innerHTML = absent.length? absent.map(t=>`<li class="py-2 flex justify-between text-red-800 border-b"><span>❌ ${t}</span><span class="bg-red-100 px-2 rounded-full">0 فترة</span></li>`).join('') : "<li class='p-2 text-emerald-600'>👍 لا يوجد غائبون تماماً</li>";
+            let summary = teachersList.map(t=>{let c=teacherWorkload[t]||0; return `<tr class="border-b"><td class="px-4 py-2 font-bold">${t}</td><td class="px-4 py-2 text-center font-mono">${c}</td><td class="px-4 py-2 text-center">${c>0?'<span class="bg-blue-100 px-2 rounded-full">نشط</span>':'<span class="bg-red-100 px-2 rounded-full">غائب كلياً</span>'}</td></tr>`; }).join('');
+            document.getElementById("periodsSummaryTableBody").innerHTML = summary || "<tr><td colspan='3'>لا توجد بيانات</td></tr>";
+            let printBody = teachersList.map((t,i)=>`<tr><td class="border p-1 text-center">${i+1}</td><td class="border p-1">${t}</td><td class="border p-1 text-center">${teacherWorkload[t]||0}</td><td class="border p-1">${teacherWorkload[t]?'حاضر':'غائب كلياً'}</td></tr>`).join('');
+            document.getElementById("printPeriodsBody").innerHTML = printBody || "<tr><td colspan='4'>لا توجد بيانات</td></tr>";
+            document.getElementById("printAbsentsBody").innerHTML = absent.map((t,i)=>`<tr><td class="border p-1 text-center">${i+1}</td><td class="border p-1">${t}</td><td class="border p-1">متغيب (0 فترة)</td></tr>`).join('') || "<tr><td colspan='3'>-- لا يوجد --</td></tr>";
+            let distRows = [];
+            for(let day=1; day<=examConfig.totalDays; day++) for(let p of (examConfig.daysMap[day]||[])) for(let r=1; r<=examConfig.totalRooms; r++) distRows.push({ اليوم:`اليوم ${day}`, الفترة:p.name, القاعة:r, الحارس1:bookingState[`${p.id}_room${r}_guard1`]||"---", الحارس2:bookingState[`${p.id}_room${r}_guard2`]||"---", الحارس3:bookingState[`${p.id}_room${r}_guard3`]||"---" });
+            let printDist = distRows.map(r=>`<tr><td class="border p-1">${r.اليوم}</td><td class="border p-1">${r.الفترة}</td><td class="border p-1">${r.القاعة}</td><td class="border p-1">${r.الحارس1}</td><td class="border p-1">${r.الحارس2}</td><td class="border p-1">${r.الحارس3}</td></tr>`).join('');
+            document.getElementById("printDistributionBody").innerHTML = printDist || "<tr><td colspan='6'>لا توجد بيانات</td></tr>";
+        }
+        
+        function setPrintDate() { let today = new Date(); document.getElementById("printDate").innerText = today.toLocaleDateString('ar-EG'); }
+        function exportCurrentState() { if(!teachersList.length){ alert("لا توجد بيانات"); return; } const data = { examConfig, teachers: teachersList, bookings: bookingState, version: "3.0" }; const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `حالة_الحراس_${new Date().toISOString().slice(0,19)}.json`; a.click(); URL.revokeObjectURL(url); }
+        function importPreviousState(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(ev) { try { const data = JSON.parse(ev.target.result); if(data.examConfig && data.teachers && data.bookings) { examConfig = data.examConfig; teachersList = data.teachers.filter(t => typeof t === 'string' && t.trim().length>0); bookingState = data.bookings; document.getElementById("configDays").value = examConfig.totalDays; document.getElementById("configRooms").value = examConfig.totalRooms; generateExamStructureConfig(); onMasterListUpdated(); applyConfigChanges(); alert("✅ تم استرجاع الحالة بنجاح."); } else throw new Error(); } catch(err) { alert("الملف تالف أو غير صالح."); } }; reader.readAsText(file); }
+        function exportFullScheduleExcel() { let rows = []; for(let day=1; day<=examConfig.totalDays; day++) for(let p of (examConfig.daysMap[day]||[])) for(let r=1; r<=examConfig.totalRooms; r++) rows.push({"اليوم":`اليوم ${day}`,"الفترة":p.name,"القاعة":r,"الحارس الأول":bookingState[`${p.id}_room${r}_guard1`]||"---","الحارس الثاني":bookingState[`${p.id}_room${r}_guard2`]||"---","الحارس الثالث":bookingState[`${p.id}_room${r}_guard3`]||"---"}); const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "توزيع الحراس"); XLSX.writeFile(wb, `جدول_توزيع_الحراس_${new Date().toISOString().slice(0,19)}.xlsx`); }
+        function exportStatisticsExcel() { if(!teachersList.length){ alert("لا توجد أسماء"); return; } let stats = teachersList.map((t,i)=>({الرقم:i+1,"الاسم الكامل":t,"مجموع الفترات":teacherWorkload[t]||0,"الحالة":teacherWorkload[t]?"حاضر":"غائب"})); const ws = XLSX.utils.json_to_sheet(stats); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "إحصائيات الحراس"); XLSX.writeFile(wb, `احصائيات_الحراس_${new Date().toISOString().slice(0,19)}.xlsx`); }
+        
+        document.getElementById("globalSearchInput").addEventListener("input", function() { let q=this.value.trim().toLowerCase(); let res=document.getElementById("searchResults"); if(!q) { res.classList.add("hidden"); return; } let matched=teachersList.filter(t=>t.toLowerCase().includes(q)); res.innerHTML=`<div class="font-bold">🔎 نتائج البحث (${matched.length})</div>${matched.map(t=>`<div>📌 ${t} (${teacherWorkload[t]||0} فترة)</div>`).join('')}`; res.classList.remove("hidden"); });
+        document.addEventListener("DOMContentLoaded", () => { generateExamStructureConfig(); applyConfigChanges(); });
+    </script>
+</body>
+</html>
